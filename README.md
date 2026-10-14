@@ -1,50 +1,66 @@
 # test-manager-library-3145555-api
 
-> **Prueba técnica · Ficha ADSO 3145555**
-> Horario: **miércoles 14 de octubre de 2026, de 6:50 a. m. a 11:00 a. m.** (hora Colombia). Entrega a las **11:00 a. m.**
+> **Backend REST API en PHP (Laravel 11) — Manager Library**
+> Ficha ADSO 3145555 · SDD (Spec-Driven Development)
 
-Este repositorio es el **backend** de *Manager Library*, en **PHP con Laravel**. **Empieza vacío a propósito**: se construye en el fork de cada aprendiz.
+Backend oficial de *Manager Library* implementado en **PHP con Laravel 11**, respetando estrictamente el contrato HTTP en `spec-laravel-react/api-contract.md` y el modelo de datos físico en PostgreSQL bajo el esquema `library`.
 
-## Instrucciones
+---
 
-Cada aprendiz debe **crear el fork** de los seis repositorios del proyecto y **resolver el proyecto
-con el spec planteado**.
+## 1. Características Técnicas
 
-1. Hacer fork, a su cuenta de GitHub, de cada repositorio de la tabla del final.
-2. Leer el spec en [`test-manager-library-3145555-docs`](https://github.com/code-sena/test-manager-library-3145555-docs).
-   Se entrega en dos versiones: `spec-python/` y `spec-.net/`.
-3. Desarrollar en los forks.
+- **Framework:** Laravel 11 sobre PHP 8.2+.
+- **Motor de Base de Datos:** PostgreSQL 16 (Esquema `library`).
+- **Autenticación:** Tokens Bearer firmados con HMAC-SHA256 (JWT), vigencia de 8 horas.
+- **Control de Acceso:** Middleware de roles (`admin`, `librarian`).
+- **Formato Canónico de Errores:** Todos los errores HTTP devuelven el esquema `{ "code", "message", "details" }`.
+- **Inmutabilidad y Concurrencia:** Bloqueo transaccional de ejemplares (`lockForUpdate`), datos históricos congelados en `loan_item` (ADR-004), y baja lógica de libros (`deleted_at`).
 
-## El reto se desarrolla con React y PHP (Laravel)
+---
 
-El spec está escrito para Python y para .NET, pero el reto **no** se hace en esos lenguajes:
+## 2. Endpoints Implementados (Base `/api/v1`)
 
-| Capa | Tecnología del reto |
-|---|---|
-| Frontend | React |
-| Backend | PHP con Laravel |
+### Autenticación y Salud (Públicos)
+- `GET /api/v1/health` — Comprobación de estado del servicio (`{"status":"ok"}`).
+- `POST /api/v1/auth/login` — Autenticación de usuario (`username`, `password`) retornando token Bearer y rol.
 
-Lo que el spec define sobre el negocio —historias, criterios de aceptación, reglas, contrato de la
-API, modelo de datos— se respeta. Lo que define sobre la tecnología se traduce a React y Laravel.
+### Categorías y Libros (Autenticados)
+- `GET /api/v1/categories` — Listado de las 5 categorías oficiales sembradas en inglés.
+- `GET /api/v1/books` — Búsqueda paginada con filtro de texto (`q`) y categoría (`category_id`).
+- `GET /api/v1/books/{id}` — Detalle del libro.
+- `POST /api/v1/books` *(Admin)* — Registro de libros con ISBN de 13 dígitos y total de ejemplares.
+- `PUT /api/v1/books/{id}` *(Admin)* — Actualización del catálogo sin permitir disponibles negativos.
+- `DELETE /api/v1/books/{id}` *(Admin)* — Baja lógica (rechazada si tiene préstamos abiertos).
+- `PUT /api/v1/books/{id}/cover` *(Admin)* — Subida de portada JPG/PNG hasta 2 MB.
+- `GET /api/v1/books/{id}/cover` — Descarga binaria de portada.
+- `DELETE /api/v1/books/{id}/cover` *(Admin)* — Eliminación de portada.
 
-## La prueba no consiste en escribir el código
+### Socios y Préstamos (Autenticados)
+- `GET /api/v1/members` — Búsqueda paginada de socios con conteo de préstamos activos.
+- `GET /api/v1/members/{id}` — Detalle del socio.
+- `POST /api/v1/members` — Alta de socios con documento único.
+- `POST /api/v1/loans` — Registro transaccional de préstamos (1 a 3 libros, límite de 3 sin devolver, bloqueo por morosidad).
+- `GET /api/v1/loans` — Listado de préstamos por rango de fechas, estado (`open`, `overdue`, `closed`) y socio.
+- `GET /api/v1/loans/{id}` — Detalle del préstamo con líneas y estado calculado en tiempo real.
+- `POST /api/v1/loans/{loan_id}/items/{item_id}/return` — Devolución de línea y reposición de ejemplares.
+- `GET /api/v1/loans/overdue` — Listado de líneas en mora ordenadas por días de retraso.
 
-El propósito principal es ver la **capacidad de desempeño con SDD** (*Spec-Driven Development*,
-desarrollo guiado por especificación): cómo se lee, se interpreta y se aplica una especificación
-para llevarla a un stack distinto. El código es el medio, no el fin.
+### Reportes y Usuarios (Admin)
+- `POST /api/v1/users` *(Admin)* — Alta de bibliotecarios (`role: librarian`).
+- `GET /api/v1/reports/most-borrowed` *(Admin)* — Reporte de libros más prestados por rango de fechas agrupado por título y categoría congelados.
 
-## Entrega
+---
 
-Cuenta lo que quede **subido a los forks antes de las 11:00 a. m.** Lo que llegue después no se revisa.
-No hay prórroga: suban avances parciales con commits pequeños durante la prueba.
+## 3. Puesta en Marcha con Docker
 
-## Los seis repositorios
+```bash
+# 1. Configurar variables de entorno
+cp .env.example .env
 
-| Repositorio | Qué va ahí |
-|---|---|
-| [`test-manager-library-3145555-docs`](https://github.com/code-sena/test-manager-library-3145555-docs) | El spec: `spec-python/` y `spec-.net/` |
-| [`test-manager-library-3145555-api`](https://github.com/code-sena/test-manager-library-3145555-api) | Backend en PHP (Laravel) |
-| [`test-manager-library-3145555-app`](https://github.com/code-sena/test-manager-library-3145555-app) | Frontend en React |
-| [`test-manager-library-3145555-page`](https://github.com/code-sena/test-manager-library-3145555-page) | Sitio público estático de presentación |
-| [`test-manager-library-3145555-infra`](https://github.com/code-sena/test-manager-library-3145555-infra) | Contenedores, red, volúmenes y motor de base de datos vacío |
-| [`test-manager-library-3145555-tool`](https://github.com/code-sena/test-manager-library-3145555-tool) | Utilidades: sembrador de datos de demostración |
+# 2. Ejecutar migraciones y seeders
+docker compose run --rm api php artisan migrate --force
+docker compose run --rm api php artisan db:seed --force
+
+# 3. Iniciar servidor
+docker compose up -d
+```
