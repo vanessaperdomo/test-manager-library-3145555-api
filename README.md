@@ -64,3 +64,18 @@ docker compose run --rm api php artisan db:seed --force
 # 3. Iniciar servidor
 docker compose up -d
 ```
+
+
+## Automated Feature Tests
+The API includes comprehensive feature test suites covering authentication, catalog constraints, and loan lifecycles:
+```bash
+# Run unit & feature tests inside container
+docker exec -it manager-library-api php artisan test
+```
+
+## Health & Status Check
+```bash
+curl -X GET http://127.0.0.1:8000/api/v1/health
+# Expected Response:
+# {"status":"ok","database":"connected","timestamp":"2026-10-14T..."}
+```
